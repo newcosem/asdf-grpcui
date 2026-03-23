@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# TODO: Ensure this is the correct GitHub homepage where releases can be downloaded for grpcui.
 GH_REPO="https://github.com/fullstorydev/grpcui"
 TOOL_NAME="grpcui"
 TOOL_TEST="grpcui -help"
@@ -27,7 +26,7 @@ sort_versions() {
 list_github_tags() {
 	git ls-remote --tags --refs "$GH_REPO" |
 		grep -o 'refs/tags/.*' | cut -d/ -f3- |
-		sed 's/^v//' # NOTE: You might want to adapt this sed to remove non-version strings from tags
+		sed 's/^v//'
 }
 
 list_all_versions() {
@@ -36,13 +35,32 @@ list_all_versions() {
 	list_github_tags
 }
 
+get_platform() {
+	local os arch
+
+	case "$(uname -s)" in
+	Darwin) os="osx" ;;
+	Linux) os="linux" ;;
+	*) fail "Unsupported OS: $(uname -s)" ;;
+	esac
+
+	case "$(uname -m)" in
+	x86_64 | amd64) arch="x86_64" ;;
+	i386 | i686) arch="x86_32" ;;
+	aarch64 | arm64) arch="arm64" ;;
+	*) fail "Unsupported architecture: $(uname -m)" ;;
+	esac
+
+	echo "${os}_${arch}"
+}
+
 download_release() {
-	local version filename url
+	local version filename url platform
 	version="$1"
 	filename="$2"
+	platform="$(get_platform)"
 
-	# TODO: Adapt the release URL convention for grpcui
-	url="$GH_REPO/archive/v${version}.tar.gz"
+	url="$GH_REPO/releases/download/v${version}/${TOOL_NAME}_${version}_${platform}.tar.gz"
 
 	echo "* Downloading $TOOL_NAME release $version..."
 	curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
@@ -61,7 +79,7 @@ install_version() {
 		mkdir -p "$install_path"
 		cp -r "$ASDF_DOWNLOAD_PATH"/* "$install_path"
 
-		# TODO: Assert grpcui executable exists.
+		# TODO: Assert <YOUR TOOL> executable exists.
 		local tool_cmd
 		tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
 		test -x "$install_path/$tool_cmd" || fail "Expected $install_path/$tool_cmd to be executable."
